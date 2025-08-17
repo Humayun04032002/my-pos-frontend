@@ -5,7 +5,6 @@ import { createContext, useState, useEffect } from 'react';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    // Initialize currentUser from localStorage or null if not found
     const [currentUser, setCurrentUser] = useState(() => {
         try {
             const storedUser = localStorage.getItem('currentUser');
@@ -16,7 +15,6 @@ export const AuthProvider = ({ children }) => {
         }
     });
 
-    // Effect to store currentUser in localStorage whenever it changes
     useEffect(() => {
         try {
             if (currentUser) {
@@ -29,10 +27,12 @@ export const AuthProvider = ({ children }) => {
         }
     }, [currentUser]);
 
-    // Function to handle user login
+    // Base API URL (works locally & in production if set in .env)
+    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
     const login = async (username, pin) => {
         try {
-            const response = await fetch('http://localhost:5000/api/login', {
+            const response = await fetch(`${API_URL}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,16 +46,14 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data.message || 'Login failed');
             }
 
-            // Backend returns user object (id, username, role, name)
-            setCurrentUser(data.user);
+            setCurrentUser(data.user); // user: {id, username, role, name}
             return data.user;
         } catch (error) {
             console.error('Login API call error:', error);
-            throw error; // Re-throw to be caught by the Login component
+            throw error;
         }
     };
 
-    // Function to handle user logout
     const logout = () => {
         setCurrentUser(null);
     };
