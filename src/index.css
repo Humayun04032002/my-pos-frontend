@@ -1,0 +1,45 @@
+/* src/index.css */
+
+/* Tailwind CSS directives - These inject Tailwind's Base, Components, and Utility Styles */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Import the 'Inter' font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Global font setting - The 'Inter' font will be used throughout the application */
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Print-specific styles - To hide certain UI elements when printing */
+@media print {
+  /* Elements with the .print\:hidden class will not be visible when printing */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* To highlight only the receipt area when printing */
+  body * {
+    visibility: hidden; /* By default, hide everything */
+  }
+  .print-area, .print-area * {
+    visibility: visible; /* Everything inside the print area will be visible */
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none;
+    border-radius: 0;
+    background: white;
+    font-size: 14px; /* Font size for printing */
+  }
+}
