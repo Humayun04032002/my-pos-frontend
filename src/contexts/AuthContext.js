@@ -1,10 +1,10 @@
 // src/contexts/AuthContext.js
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import { initializeApp } from 'firebase/app';
 import {
     getAuth,
-    signInAnonymously,
-    signInWithCustomToken,
+    // signInAnonymously, // Removed for standard deploy, unless explicitly needed for a different auth flow
+    // signInWithCustomToken, // Removed for standard deploy
     onAuthStateChanged,
     signOut
 } from 'firebase/auth';
@@ -21,15 +21,22 @@ export const AuthProvider = ({ children }) => {
     const [userId, setUserId] = useState(null); // Current user's UID or anonymous ID
 
     // Use your deployed Render.com backend URL here
-    const API_BASE_URL = 'https://my-pos-backend.onrender.com/api'; // <--- UPDATED THIS LINE
+    const API_BASE_URL = 'https://my-pos-backend.onrender.com/api';
 
     // Initialize Firebase and set up auth listener
     useEffect(() => {
         const initFirebase = async () => {
             try {
-                // Global variables provided by the Canvas environment
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                // For Vercel deployment, replace this empty object with your actual Firebase config:
+                // const firebaseConfig = {
+                //   apiKey: "YOUR_API_KEY",
+                //   authDomain: "YOUR_AUTH_DOMAIN",
+                //   projectId: "YOUR_PROJECT_ID",
+                //   storageBucket: "YOUR_STORAGE_BUCKET",
+                //   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+                //   appId: "YOUR_APP_ID"
+                // };
+                const firebaseConfig = {}; // Placeholder: Replace with your actual Firebase config if using Firebase features.
 
                 const app = initializeApp(firebaseConfig);
                 const authInstance = getAuth(app);
@@ -39,11 +46,14 @@ export const AuthProvider = ({ children }) => {
                 setDb(dbInstance);
 
                 const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+                    // Firebase's onAuthStateChanged might provide a user if Firebase Auth is used.
+                    // For backend-only login, this might initially be null.
+                    // The 'login' function will update currentUser after successful backend auth.
                     if (user) {
                         setCurrentUser({
                             id: user.uid,
-                            username: user.displayName || 'Guest', // displayName might not be set for anonymous
-                            role: 'guest', // Default role, will be updated after backend login
+                            username: user.displayName || 'Guest',
+                            role: 'guest', // This role is temporary, updated by backend login
                             email: user.email || 'N/A'
                         });
                         setUserId(user.uid);
@@ -51,21 +61,22 @@ export const AuthProvider = ({ children }) => {
                         setCurrentUser(null);
                         setUserId(null);
                     }
-                    setAuthReady(true); // Firebase auth state is ready
+                    setAuthReady(true); // Firebase auth state is ready regardless of logged-in status
                 });
 
-                // Sign in with custom token or anonymously if not available
-                if (initialAuthToken) {
-                    await signInWithCustomToken(authInstance, initialAuthToken);
-                } else {
-                    await signInAnonymously(authInstance);
-                }
+                // In a Vercel deployment, you typically wouldn't use __initial_auth_token.
+                // The main authentication is handled by your backend.
+                // If you *do* need Firebase client-side auth, implement it here (e.g., email/password sign-in).
+                // Example for anonymous sign-in (if still desired, but less common with backend auth):
+                // await signInAnonymously(authInstance);
 
                 return () => unsubscribe(); // Cleanup auth listener on unmount
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                setAuthReady(true); // Still set ready even if failed, to avoid infinite loading
+                // Important: Still set authReady to true even if Firebase init fails,
+                // so the app doesn't stay in a perpetual loading state.
+                setAuthReady(true);
             }
         };
 
@@ -74,7 +85,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = useCallback(async (username, pin) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/login`, { // Use API_BASE_URL
+            const response = await fetch(`${API_BASE_URL}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
