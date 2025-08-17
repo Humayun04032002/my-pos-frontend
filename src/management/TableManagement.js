@@ -1,850 +1,653 @@
 // src/management/TableManagement.js
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { ProductContext } from '../contexts/ProductContext'; // Assuming ProductContext has fetchInitialData and setAppMessage
-import { PlusCircle, Search, Edit, Trash2, XCircle, ChevronDown, ChevronUp, RefreshCcw } from 'lucide-react'; // Import icons
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { ProductContext } from '../contexts/ProductContext'; // For floors, tables, fetchInitialData, setAppMessage
+import { PlusCircle, Edit, Trash2, XCircle, RefreshCcw } from 'lucide-react'; // Lucide icons
 
-// Modals
-const AddFloorModal = ({ isOpen, onClose, onSave }) => {
-    const [floorName, setFloorName] = useState('');
-    const [numberOfTables, setNumberOfTables] = useState('');
-
-    useEffect(() => {
-        if (isOpen) {
-            setFloorName('');
-            setNumberOfTables('');
-        }
-    }, [isOpen]);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // Updated alert to use setAppMessage for consistency (assuming it's available)
-        if (!floorName.trim() || !numberOfTables || isNaN(parseInt(numberOfTables))) {
-            alert('Please enter a valid floor name and number of tables.'); // Keep alert for immediate feedback
-            return;
-        }
-        onSave({ name: floorName.trim(), numberOfTables: parseInt(numberOfTables) });
-        onClose();
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Add New Floor</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-5">
-                        <label htmlFor="floorName" className="block text-gray-700 text-sm font-semibold mb-2">Floor Name</label>
-                        <input
-                            type="text"
-                            id="floorName"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., Ground Floor"
-                            value={floorName}
-                            onChange={(e) => setFloorName(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label htmlFor="numberOfTables" className="block text-gray-700 text-sm font-semibold mb-2">Number of Tables</label>
-                        <input
-                            type="number"
-                            id="numberOfTables"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., 10"
-                            value={numberOfTables}
-                            onChange={(e) => setNumberOfTables(e.target.value)}
-                            min="0"
-                            required
-                        />
-                    </div>
-                    <div className="flex justify-end space-x-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition duration-200 ease-in-out"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out"
-                        >
-                            Save Floor
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const EditFloorModal = ({ isOpen, onClose, onSave, floor }) => {
-    const [floorName, setFloorName] = useState(floor?.name || '');
-    const [numberOfTables, setNumberOfTables] = useState(floor?.numberOfTables || ''); // Assuming this field exists or can be derived
-
-    useEffect(() => {
-        if (isOpen && floor) {
-            setFloorName(floor.name);
-            setNumberOfTables(floor.numberOfTables || ''); // Adjust based on actual floor object structure
-        }
-    }, [isOpen, floor]);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!floorName.trim() || !numberOfTables || isNaN(parseInt(numberOfTables))) {
-            alert('Please enter a valid floor name and number of tables.');
-            return;
-        }
-        onSave({ ...floor, name: floorName.trim(), numberOfTables: parseInt(numberOfTables) });
-        onClose();
-    };
-
-    if (!isOpen || !floor) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Edit Floor</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-5">
-                        <label htmlFor="editFloorName" className="block text-gray-700 text-sm font-semibold mb-2">Floor Name</label>
-                        <input
-                            type="text"
-                            id="editFloorName"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., Ground Floor"
-                            value={floorName}
-                            onChange={(e) => setFloorName(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label htmlFor="editNumberOfTables" className="block text-gray-700 text-sm font-semibold mb-2">Number of Tables</label>
-                        <input
-                            type="number"
-                            id="editNumberOfTables"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., 10"
-                            value={numberOfTables}
-                            onChange={(e) => setNumberOfTables(e.target.value)}
-                            min="0"
-                            required
-                        />
-                    </div>
-                    <div className="flex justify-end space-x-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition duration-200 ease-in-out"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const AddTableModal = ({ isOpen, onClose, onSave, floors }) => {
-    const [tableName, setTableName] = useState('');
-    const [selectedFloorId, setSelectedFloorId] = useState(''); // Keep as string for select value
-    const [maxSeats, setMaxSeats] = useState('');
-    const [status, setStatus] = useState('available');
-
-    useEffect(() => {
-        if (isOpen) {
-            setTableName('');
-            // Set default floor to the first available floor's ID if floors exist
-            setSelectedFloorId(floors.length > 0 ? String(floors[0].id) : '');
-            setMaxSeats('');
-            setStatus('available');
-        }
-    }, [isOpen, floors]);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-
-        const nameTrimmed = tableName.trim();
-        const floorIdParsed = parseInt(selectedFloorId);
-        const maxSeatsParsed = parseInt(maxSeats);
-
-        // More robust validation with specific alerts
-        if (!nameTrimmed) {
-            alert('Table name is required.');
-            return;
-        }
-        if (!selectedFloorId || isNaN(floorIdParsed)) {
-            alert('Please select a valid floor.');
-            return;
-        }
-        if (isNaN(maxSeatsParsed) || maxSeatsParsed <= 0) {
-            alert('Max seats must be a valid positive number.');
-            return;
-        }
-
-        const newTableData = {
-            name: nameTrimmed,
-            floorId: floorIdParsed, // Ensure this matches backend expected key (camelCase)
-            max_seats: maxSeatsParsed,
-            status: status
-        };
-        console.log('Attempting to add table with data:', newTableData); // Log data being sent
-        onSave(newTableData);
-        onClose();
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Add New Table</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-5">
-                        <label htmlFor="tableName" className="block text-gray-700 text-sm font-semibold mb-2">Table Name</label>
-                        <input
-                            type="text"
-                            id="tableName"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., T01"
-                            value={tableName}
-                            onChange={(e) => setTableName(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-5">
-                        <label htmlFor="tableFloor" className="block text-gray-700 text-sm font-semibold mb-2">Floor</label>
-                        <select
-                            id="tableFloor"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 bg-white"
-                            value={selectedFloorId}
-                            onChange={(e) => setSelectedFloorId(e.target.value)}
-                            required
-                        >
-                            <option value="" disabled hidden>Select a Floor</option> {/* Added placeholder option */}
-                            {floors.map(floor => (
-                                <option key={floor.id} value={floor.id}>{floor.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="mb-5">
-                        <label htmlFor="maxSeats" className="block text-gray-700 text-sm font-semibold mb-2">Max Seats</label>
-                        <input
-                            type="number"
-                            id="maxSeats"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., 4"
-                            value={maxSeats}
-                            onChange={(e) => setMaxSeats(e.target.value)}
-                            min="1"
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label htmlFor="tableStatus" className="block text-gray-700 text-sm font-semibold mb-2">Status</label>
-                        <select
-                            id="tableStatus"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 bg-white"
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            required
-                        >
-                            <option value="available">Available</option>
-                            <option value="occupied">Not Available</option> {/* Changed 'Occupied' to 'Not Available' */}
-                            <option value="reserved">Reserved</option>
-                        </select>
-                    </div>
-                    <div className="flex justify-end space-x-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition duration-200 ease-in-out"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out"
-                        >
-                            Save Table
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const EditTableModal = ({ isOpen, onClose, onSave, table, floors }) => {
-    const [tableName, setTableName] = useState(table?.name || '');
-    const [selectedFloorId, setSelectedFloorId] = useState(String(table?.floor_id) || '');
-    const [maxSeats, setMaxSeats] = useState(table?.max_seats || '');
-    const [status, setStatus] = useState(table?.status || 'available');
-
-    useEffect(() => {
-        if (isOpen && table) {
-            setTableName(table.name);
-            setSelectedFloorId(String(table.floor_id));
-            setMaxSeats(table.max_seats);
-            setStatus(table.status);
-        }
-    }, [isOpen, table]);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-
-        const nameTrimmed = tableName.trim();
-        const floorIdParsed = parseInt(selectedFloorId);
-        const maxSeatsParsed = parseInt(maxSeats);
-
-        // More robust validation for edit modal
-        if (!nameTrimmed) {
-            alert('Table name is required.');
-            return;
-        }
-        if (!selectedFloorId || isNaN(floorIdParsed)) {
-            alert('Please select a valid floor.');
-            return;
-        }
-        if (isNaN(maxSeatsParsed) || maxSeatsParsed <= 0) {
-            alert('Max seats must be a valid positive number.');
-            return;
-        }
-
-        // Backend expects name, floorId, status for PUT /api/tables/:id. max_seats might be ignored by backend.
-        const dataToSend = {
-            name: nameTrimmed,
-            floor_id: floorIdParsed, // Ensure this matches backend expected key (snake_case)
-            max_seats: maxSeatsParsed, // Include for consistency, even if backend ignores it for PUT
-            status: status
-        };
-        onSave({
-            ...table, // Keep existing table properties like 'id'
-            ...dataToSend // Override with updated data
-        });
-        onClose();
-    };
-
-    if (!isOpen || !table) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Edit Table</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-5">
-                        <label htmlFor="editTableName" className="block text-gray-700 text-sm font-semibold mb-2">Table Name</label>
-                        <input
-                            type="text"
-                            id="editTableName"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., T01"
-                            value={tableName}
-                            onChange={(e) => setTableName(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-5">
-                        <label htmlFor="editTableFloor" className="block text-gray-700 text-sm font-semibold mb-2">Floor</label>
-                        <select
-                            id="editTableFloor"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 bg-white"
-                            value={selectedFloorId}
-                            onChange={(e) => setSelectedFloorId(e.target.value)}
-                            required
-                        >
-                            {floors.map(floor => (
-                                <option key={floor.id} value={floor.id}>{floor.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="mb-5">
-                        <label htmlFor="editMaxSeats" className="block text-gray-700 text-sm font-semibold mb-2">Max Seats</label>
-                        <input
-                            type="number"
-                            id="editMaxSeats"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                            placeholder="e.g., 4"
-                            value={maxSeats}
-                            onChange={(e) => setMaxSeats(e.target.value)}
-                            min="1"
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label htmlFor="editTableStatus" className="block text-gray-700 text-sm font-semibold mb-2">Status</label>
-                        <select
-                            id="editTableStatus"
-                            className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 bg-white"
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value)}
-                            required
-                        >
-                            <option value="available">Available</option>
-                            <option value="occupied">Not Available</option> {/* Changed 'Occupied' to 'Not Available' */}
-                            <option value="reserved">Reserved</option>
-                        </select>
-                    </div>
-                    <div className="flex justify-end space-x-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition duration-200 ease-in-out"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const DeleteConfirmationModal = ({ isOpen, onClose, onDelete, itemName }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm text-center transform transition-all duration-300 scale-100">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800">Confirm Deletion</h2>
-                <p className="text-gray-600 mb-6">Are you sure you want to delete <span className="font-semibold text-red-600">"{itemName}"</span>? This action cannot be undone.</p>
-                <div className="flex justify-center space-x-4">
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition duration-200 ease-in-out"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={onDelete}
-                        className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold shadow-md hover:bg-red-700 transition duration-200 ease-in-out"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
+// TableManagement Component: Allows Admin/Manager to manage floors and tables.
 function TableManagement() {
-    const { floors, setFloors, tables, setTables, fetchInitialData, setAppMessage } = useContext(ProductContext);
+    // Access floors, tables, and fetchInitialData from ProductContext
+    const { floors, tables, fetchInitialData, setAppMessage } = useContext(ProductContext);
 
-    // Modals state
-    const [showAddFloorModal, setShowAddFloorModal] = useState(false);
-    const [showEditFloorModal, setShowEditFloorModal] = useState(false);
-    const [selectedFloorForEdit, setSelectedFloorForEdit] = useState(null);
-    const [showDeleteFloorModal, setShowDeleteFloorModal] = useState(false);
-    const [selectedFloorForDelete, setSelectedFloorForDelete] = useState(null);
+    const [newFloorName, setNewFloorName] = useState('');
+    const [isAddFloorModalOpen, setIsAddFloorModalOpen] = useState(false);
+    const [floorToEdit, setFloorToEdit] = useState(null);
+    const [isEditFloorModalOpen, setIsEditFloorModalOpen] = useState(false);
+    const [floorToDelete, setFloorToDelete] = useState(null);
+    const [isConfirmDeleteFloorModalOpen, setIsConfirmDeleteFloorModalOpen] = useState(false);
 
-    const [showAddTableModal, setShowAddTableModal] = useState(false);
-    const [showEditTableModal, setShowEditTableModal] = useState(false);
-    const [selectedTableForEdit, setSelectedTableForEdit] = useState(null);
-    const [showDeleteTableModal, setShowDeleteTableModal] = useState(false);
-    const [selectedTableForDelete, setSelectedTableForDelete] = useState(null);
+    const [newTable, setNewTable] = useState({ name: '', floor_id: '', max_seats: 4, status: 'available' });
+    const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
+    const [tableToEdit, setTableToEdit] = useState(null);
+    const [isEditTableModalOpen, setIsEditTableModalOpen] = useState(false);
+    const [tableToDelete, setTableToDelete] = useState(null);
+    const [isConfirmDeleteTableModalOpen, setIsConfirmDeleteTableModalOpen] = useState(false);
 
-    // Filtering and Search state for tables
-    const [selectedFloorFilter, setSelectedFloorFilter] = useState('All'); // 'All' or floor.id
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'available', 'occupied', 'reserved'
-
-    // Fetch initial data when component mounts
-    useEffect(() => {
-        fetchInitialData();
-    }, []); // Empty dependency array means this effect runs only once after the initial render.
+    const [selectedFloorTab, setSelectedFloorTab] = useState('All'); // For floor tabs
 
 
-    // --- API Calls ---
+    // Memoized list of all unique floor names for dropdowns/tabs
+    const allFloorNames = useMemo(() => {
+        return ['All', ...floors.map(floor => floor.name)].sort();
+    }, [floors]);
 
-    const handleAddFloor = async (newFloorData) => {
+    // Memoized and filtered tables for display based on selected tab
+    const filteredTables = useMemo(() => {
+        if (selectedFloorTab === 'All') {
+            return tables.map(table => ({
+                ...table,
+                floor_name: floors.find(f => f.id === table.floor_id)?.name || 'N/A'
+            }));
+        } else {
+            const selectedFloorId = floors.find(f => f.name === selectedFloorTab)?.id;
+            return tables.filter(table => table.floor_id === selectedFloorId).map(table => ({
+                ...table,
+                floor_name: selectedFloorTab // Already known
+            }));
+        }
+    }, [tables, selectedFloorTab, floors]);
+
+    // --- Floor Management Functions ---
+    const handleAddFloor = async (e) => {
+        e.preventDefault();
+        if (!newFloorName.trim()) {
+            setAppMessage({ type: 'error', text: 'Floor name cannot be empty.' });
+            return;
+        }
         try {
-            const response = await fetch('http://localhost:5000/api/floors', {
+            const response = await fetch('https://my-pos-backend.onrender.com/api/floors', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newFloorData),
+                body: JSON.stringify({ name: newFloorName.trim() }),
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to add floor.');
+                // Robust error handling: Check if data is an object and has a message
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to add floor. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Floor "${newFloorData.name}" added successfully!` });
-            fetchInitialData(); // Re-fetch to update the list
-        } catch (error) {
-            console.error('Error adding floor:', error);
-            setAppMessage({ type: 'error', text: `Error adding floor: ${error.message}` });
+            setAppMessage({ type: 'success', text: `Floor "${data.floor.name}" added successfully!` });
+            setNewFloorName('');
+            setIsAddFloorModalOpen(false);
+            fetchInitialData(); // Refresh data in App.js
+        } catch (err) {
+            console.error('Error adding floor:', err.message);
+            setAppMessage({ type: 'error', text: `Failed to add floor: ${err.message}` });
         }
     };
 
-    const handleEditFloor = async (updatedFloorData) => {
+    const handleEditFloor = async (e) => {
+        e.preventDefault();
+        if (!floorToEdit || !floorToEdit.name.trim()) {
+            setAppMessage({ type: 'error', text: 'Floor name cannot be empty.' });
+            return;
+        }
         try {
-            const response = await fetch(`http://localhost:5000/api/floors/${updatedFloorData.id}`, {
+            const response = await fetch(`https://my-pos-backend.onrender.com/api/floors/${floorToEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: updatedFloorData.name }),
+                body: JSON.stringify({ name: floorToEdit.name.trim() }),
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to update floor.');
+                // Robust error handling
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to update floor. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Floor "${updatedFloorData.name}" updated successfully!` });
-            fetchInitialData();
-        } catch (error) {
-            console.error('Error updating floor:', error);
-            setAppMessage({ type: 'error', text: `Error updating floor: ${error.message}` });
+            setAppMessage({ type: 'success', text: `Floor "${data.floor.name}" updated successfully!` });
+            setIsEditFloorModalOpen(false);
+            setFloorToEdit(null);
+            fetchInitialData(); // Refresh data
+        } catch (err) {
+            console.error('Error updating floor:', err);
+            setAppMessage({ type: 'error', text: `Failed to update floor: ${err.message}` });
         }
     };
 
-    const handleDeleteFloor = async () => {
-        if (!selectedFloorForDelete) return;
-        console.log('Attempting to delete floor with ID:', selectedFloorForDelete.id, 'Name:', selectedFloorForDelete.name);
+    const handleDeleteFloorConfirmed = async () => {
+        if (!floorToDelete) return;
         try {
-            const response = await fetch(`http://localhost:5000/api/floors/${selectedFloorForDelete.id}`, {
+            const response = await fetch(`https://my-pos-backend.onrender.com/api/floors/${floorToDelete.id}`, {
                 method: 'DELETE',
             });
+            const data = await response.json();
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to delete floor.');
+                // Robust error handling
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to delete floor. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Floor "${selectedFloorForDelete.name}" deleted successfully!` });
-            fetchInitialData();
-            setShowDeleteFloorModal(false);
-            setSelectedFloorForDelete(null);
-        } catch (error) {
-            console.error('Error deleting floor:', error);
-            setAppMessage({ type: 'error', text: `Error deleting floor: ${error.message}` });
+            setAppMessage({ type: 'success', text: `Floor "${floorToDelete.name}" deleted successfully!` });
+            setIsConfirmDeleteFloorModalOpen(false);
+            setFloorToDelete(null);
+            fetchInitialData(); // Refresh data
+            setSelectedFloorTab('All'); // Reset tab if deleted floor was selected
+        } catch (err) {
+            console.error('Error deleting floor:', err);
+            setAppMessage({ type: 'error', text: `Failed to delete floor: ${err.message}` });
         }
     };
 
-    const handleAddTable = async (newTableData) => {
+    // --- Table Management Functions ---
+    const handleAddTable = async (e) => {
+        e.preventDefault();
+        if (!newTable.name.trim() || !newTable.floor_id || newTable.max_seats === undefined || newTable.max_seats <= 0) {
+            setAppMessage({ type: 'error', text: 'Table name, floor, and valid max seats are required.' });
+            return;
+        }
         try {
-            const response = await fetch('http://localhost:5000/api/tables', {
+            const response = await fetch('https://my-pos-backend.onrender.com/api/tables', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newTableData),
+                body: JSON.stringify({
+                    name: newTable.name.trim(),
+                    floorId: parseInt(newTable.floor_id), // Ensure floor_id is an integer
+                    max_seats: parseInt(newTable.max_seats),
+                    status: newTable.status
+                }),
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to add table.');
+                // Robust error handling: Check if data is an object and has a message
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to add table. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Table "${newTableData.name}" added successfully!` });
-            fetchInitialData();
-        } catch (error) {
-            console.error('Error adding table:', error);
-            setAppMessage({ type: 'error', text: `Error adding table: ${error.message}` });
+            // MODIFIED: Added optional chaining to prevent TypeError if 'data.table' is undefined
+            setAppMessage({ type: 'success', text: `Table "${data.table?.name || 'N/A'}" added successfully!` });
+            setNewTable({ name: '', floor_id: '', max_seats: 4, status: 'available' }); // Reset form
+            setIsAddTableModalOpen(false);
+            fetchInitialData(); // Refresh data
+        } catch (err) {
+            console.error('Error adding table:', err);
+            setAppMessage({ type: 'error', text: `Failed to add table: ${err.message}` });
         }
     };
 
-    const handleEditTable = async (updatedTableData) => {
+    const handleEditTable = async (e) => {
+        e.preventDefault();
+        if (!tableToEdit || !tableToEdit.name.trim() || !tableToEdit.floor_id || tableToEdit.max_seats === undefined || tableToEdit.max_seats <= 0 || !tableToEdit.status) {
+            setAppMessage({ type: 'error', text: 'Table name, floor, max seats, and status are required.' });
+            return;
+        }
         try {
-            const dataToSend = {
-                name: updatedTableData.name,
-                floor_id: updatedTableData.floor_id,
-                status: updatedTableData.status
-            };
-            const response = await fetch(`http://localhost:5000/api/tables/${updatedTableData.id}`, {
+            const response = await fetch(`https://my-pos-backend.onrender.com/api/tables/${tableToEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataToSend),
+                body: JSON.stringify({
+                    name: tableToEdit.name.trim(),
+                    floorId: parseInt(tableToEdit.floor_id), // Ensure floor_id is integer
+                    max_seats: parseInt(tableToEdit.max_seats),
+                    status: tableToEdit.status
+                }),
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to update table.');
+                // Robust error handling
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to update table. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Table "${updatedTableData.name}" updated successfully!` });
-            fetchInitialData();
-        } catch (error) {
-            console.error('Error updating table:', error);
-            setAppMessage({ type: 'error', text: `Error updating table: ${error.message}` });
+            setAppMessage({ type: 'success', text: `Table "${data.table.name}" updated successfully!` });
+            setIsEditTableModalOpen(false);
+            setTableToEdit(null);
+            fetchInitialData(); // Refresh data
+        } catch (err) {
+            console.error('Error updating table:', err);
+            setAppMessage({ type: 'error', text: `Failed to update table: ${err.message}` });
         }
     };
 
-    const handleDeleteTable = async () => {
-        if (!selectedTableForDelete) return;
+    const handleDeleteTableConfirmed = async () => {
+        if (!tableToDelete) return;
         try {
-            const response = await fetch(`http://localhost:5000/api/tables/${selectedTableForDelete.id}`, {
+            const response = await fetch(`https://my-pos-backend.onrender.com/api/tables/${tableToDelete.id}`, {
                 method: 'DELETE',
             });
+            const data = await response.json();
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to delete table.');
+                // Robust error handling
+                throw new Error(data && typeof data === 'object' && data.message ? data.message : 'Failed to delete table. Unknown server error.');
             }
-            setAppMessage({ type: 'success', text: `Table "${selectedTableForDelete.name}" deleted successfully!` });
-            fetchInitialData();
-            setShowDeleteTableModal(false);
-            setSelectedTableForDelete(null);
-        } catch (error) {
-            console.error('Error deleting table:', error);
-            setAppMessage({ type: 'error', text: `Error deleting table: ${error.message}` });
-        }
-    };
-
-    // --- Filtered and Searched Tables ---
-    const filteredAndSearchedTables = useMemo(() => {
-        let currentTables = tables;
-
-        // Filter by floor
-        if (selectedFloorFilter !== 'All') {
-            currentTables = currentTables.filter(table => String(table.floor_id) === selectedFloorFilter);
-        }
-
-        // Filter by status
-        if (statusFilter !== 'All') {
-            currentTables = currentTables.filter(table => table.status === statusFilter);
-        }
-
-        // Search by term
-        if (searchTerm) {
-            currentTables = currentTables.filter(table =>
-                table.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-        return currentTables;
-    }, [tables, selectedFloorFilter, searchTerm, statusFilter]);
-
-    // Function to get status-based card classes for the entire table card
-    const getCardStatusClasses = (status) => {
-        switch (status) {
-            case 'available': return 'bg-green-100 border-green-300 text-green-800';
-            case 'occupied': return 'bg-red-100 border-red-300 text-red-800'; // Red for 'Not Available'
-            case 'reserved': return 'bg-orange-100 border-orange-300 text-orange-800';
-            default: return 'bg-gray-100 border-gray-300 text-gray-800'; // Default neutral
-        }
-    };
-
-    // Function to get display text for status
-    const getStatusDisplayText = (status) => {
-        switch (status) {
-            case 'available': return 'Available';
-            case 'occupied': return 'Not Available';
-            case 'reserved': return 'Reserved';
-            default: return 'Unknown';
+            setAppMessage({ type: 'success', text: `Table "${tableToDelete.name}" deleted successfully!` });
+            setIsConfirmDeleteTableModalOpen(false);
+            setTableToDelete(null);
+            fetchInitialData(); // Refresh data
+        } catch (err) {
+            console.error('Error deleting table:', err);
+            setAppMessage({ type: 'error', text: `Failed to delete table: ${err.message}` });
         }
     };
 
     return (
-        <div className="p-6 bg-gray-100 min-h-screen animate-fade-in">
-            {/* Header */}
-            <div className="mb-8 border-b pb-4">
-                <h1 className="text-3xl font-bold text-gray-900">Floor & Table Management</h1>
-                <p className="text-gray-600 mt-2">Manage your restaurant's floors and tables.</p>
+        <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+            <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Table Management</h1>
+
+            {/* Top Action Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-md mb-6">
+                <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
+                    <button
+                        onClick={() => setIsAddFloorModalOpen(true)}
+                        className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mr-3"
+                    >
+                        <PlusCircle size={20} className="mr-2" /> Add New Floor
+                    </button>
+                    <button
+                        onClick={() => setIsAddTableModalOpen(true)}
+                        className="flex items-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-200"
+                    >
+                        <PlusCircle size={20} className="mr-2" /> Add New Table
+                    </button>
+                </div>
+                {/* Refresh button */}
+                <button
+                    onClick={fetchInitialData}
+                    className="flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md transition-colors duration-200"
+                >
+                    <RefreshCcw size={18} className="mr-2" /> Refresh Data
+                </button>
             </div>
 
-            {/* Floor Management Section */}
-            <section className="bg-white rounded-xl shadow-2xl p-6 mb-8 border border-gray-100">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 className="text-2xl font-bold text-gray-800">Floor Management</h2>
+            {/* Floor Tabs */}
+            <div className="flex flex-wrap gap-2 mb-6 justify-center bg-white p-3 rounded-xl shadow-md">
+                {allFloorNames.map(floorName => (
                     <button
-                        onClick={() => setShowAddFloorModal(true)}
-                        className="flex items-center px-5 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out font-semibold"
+                        key={floorName}
+                        onClick={() => setSelectedFloorTab(floorName)}
+                        className={`py-2 px-4 rounded-full text-sm font-medium transition-colors duration-200
+                            ${selectedFloorTab === floorName ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
+                        `}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5 mr-2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Add Floor
+                        {floorName}
                     </button>
-                </div>
+                ))}
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {floors.length > 0 ? (
-                        floors.map(floor => (
-                            <div key={floor.id} className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200 flex items-center justify-between transition-transform transform hover:scale-[1.02] duration-200 ease-in-out">
-                                <div className="flex items-center space-x-4">
-                                    <div className="p-3 bg-indigo-100 rounded-full text-indigo-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-gray-800">{floor.name}</h3>
-                                        <p className="text-sm text-gray-500">{tables.filter(t => t.floor_id === floor.id).length} tables</p>
-                                    </div>
-                                </div>
-                                <div className="flex space-x-2">
-                                    <button
-                                        onClick={() => { setSelectedFloorForEdit(floor); setShowEditFloorModal(true); }}
-                                        className="p-2 rounded-full text-gray-500 hover:bg-gray-200 hover:text-indigo-600 transition duration-200"
-                                        aria-label={`Edit ${floor.name}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 2.251A1.082 1.082 0 0118 3.75v12.75c0 .72-.58 1.3-1.3 1.3h-2.55A1.082 1.082 0 0113.5 17.25V4.5a1.082 1.082 0 011.088-1.088l.17-.017zM15 15.75L9 21.75M16.5 16.5L10.5 22.5M10.5 12.75v-1.5M12 11.25H9.75" /></svg>
-                                    </button>
-                                    <button
-                                        onClick={() => { setSelectedFloorForDelete(floor); setShowDeleteFloorModal(true); }}
-                                        className="p-2 rounded-full text-gray-500 hover:bg-red-200 hover:text-red-600 transition duration-200"
-                                        aria-label={`Delete ${floor.name}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.007H5.493a2.25 2.25 0 01-2.244-2.007L1.926 6.75H19.08c.243 0 .482.02.72.054zm-9.968 0h.008v.008h-.008V6.75zm1.5 0h.008v.008h-.008V6.75zm1.5 0h.008v.008h-.008V6.75z" /></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="lg:col-span-3 text-center text-gray-500 py-8 bg-gray-50 rounded-lg border border-gray-200 shadow-inner">
-                            <p className="text-lg font-semibold">No floors configured yet.</p>
-                            <p className="text-md mt-2">Click "Add Floor" to get started!</p>
-                        </div>
-                    )}
-                </div>
-            </section>
-
-            {/* Table Management Section */}
-            <section className="bg-white rounded-xl shadow-2xl p-6 border border-gray-100">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 className="text-2xl font-bold text-gray-800">Table Management</h2>
-                    <button
-                        onClick={() => setShowAddTableModal(true)}
-                        className="flex items-center px-5 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out font-semibold"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5 mr-2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Add Table
-                    </button>
-                </div>
-
-                {/* Table Filters and Search */}
-                <div className="mb-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                    <div className="relative flex-grow">
-                        <input
-                            type="text"
-                            placeholder="Search tables..."
-                            className="w-full py-2 pl-10 pr-4 rounded-lg bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent text-gray-800 placeholder-gray-500 shadow-sm"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div className="relative">
-                        <select
-                            className="block w-full sm:w-auto py-2 pl-3 pr-10 rounded-lg bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent text-gray-800 appearance-none shadow-sm"
-                            value={selectedFloorFilter}
-                            onChange={(e) => setSelectedFloorFilter(e.target.value)}
-                        >
-                            <option value="All">All Floors</option>
-                            {floors.map(floor => (
-                                <option key={floor.id} value={floor.id}>{floor.name}</option>
-                            ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                        </div>
-                    </div>
-
-                    <div className="relative">
-                        <select
-                            className="block w-full sm:w-auto py-2 pl-3 pr-10 rounded-lg bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent text-gray-800 appearance-none shadow-sm"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="All">All Statuses</option>
-                            <option value="available">Available</option>
-                            <option value="occupied">Not Available</option> {/* Filter option updated */}
-                            <option value="reserved">Reserved</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredAndSearchedTables.length > 0 ? (
-                        filteredAndSearchedTables.map(table => (
-                            <div key={table.id} className={`p-6 rounded-xl shadow-md border flex flex-col transition-transform transform hover:scale-[1.02] duration-200 ease-in-out ${getCardStatusClasses(table.status)}`}>
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center space-x-2">
-                                        {/* Removed the small dot, as the whole card now shows the status color */}
-                                        <h3 className="text-xl font-semibold">{table.name}</h3> {/* Text color is inherited from getCardStatusClasses */}
-                                    </div>
-                                    <div className="flex space-x-2">
+            {/* Floor List for Management */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Floors</h2>
+            <div className="overflow-x-auto bg-white rounded-lg shadow-md mb-8">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Floor Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tables Count</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {floors.length === 0 ? (
+                            <tr>
+                                <td colSpan="3" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                    No floors configured. Please add one!
+                                </td>
+                            </tr>
+                        ) : (
+                            floors.map(floor => (
+                                <tr key={floor.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{floor.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {tables.filter(table => table.floor_id === floor.id).length}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <button
-                                            onClick={() => { setSelectedTableForEdit(table); setShowEditTableModal(true); }}
-                                            className="p-1 rounded-full text-current hover:bg-opacity-20 hover:bg-current transition duration-200"
-                                            aria-label={`Edit ${table.name}`}
+                                            onClick={() => { setFloorToEdit(floor); setIsEditFloorModalOpen(true); }}
+                                            className="text-indigo-600 hover:text-indigo-900 mr-3 p-1 rounded-md hover:bg-indigo-50 transition-colors"
+                                            title="Edit Floor"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 2.251A1.082 1.082 0 0118 3.75v12.75c0 .72-.58 1.3-1.3 1.3h-2.55A1.082 1.082 0 0113.5 17.25V4.5a1.082 1.082 0 011.088-1.088l.17-.017zM15 15.75L9 21.75M16.5 16.5L10.5 22.5M10.5 12.75v-1.5M12 11.25H9.75" /></svg>
+                                            <Edit size={18} />
                                         </button>
                                         <button
-                                            onClick={() => { setSelectedTableForDelete(table); setShowDeleteTableModal(true); }}
-                                            className="p-1 rounded-full text-current hover:bg-opacity-20 hover:bg-red-200 transition duration-200"
-                                            aria-label={`Delete ${table.name}`}
+                                            onClick={() => { setFloorToDelete(floor); setIsConfirmDeleteFloorModalOpen(true); }}
+                                            className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
+                                            title="Delete Floor"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.007H5.493a2.25 2.25 0 01-2.244-2.007L1.926 6.75H19.08c.243 0 .482.02.72.054zm-9.968 0h.008v.008h-.008V6.75zm1.5 0h.008v.008h-.008V6.75zm1.5 0h.008v.008h-.008V6.75z" /></svg>
+                                            <Trash2 size={18} />
                                         </button>
-                                    </div>
-                                </div>
-                                {/* Display full status text */}
-                                <p className="text-sm font-medium">{getStatusDisplayText(table.status)}</p>
-                                <p className="text-sm">Floor: {floors.find(f => f.id === table.floor_id)?.name || 'N/A'}</p>
-                                <p className="text-sm">Max Seats: {table.max_seats}</p>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="lg:col-span-4 text-center text-gray-500 py-8 bg-gray-50 rounded-lg border border-gray-200 shadow-inner">
-                            <p className="text-lg font-semibold">No tables found matching your criteria.</p>
-                            <p className="text-md mt-2">Try adjusting your filters or adding new tables.</p>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Tables List */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Tables</h2>
+            <div className="overflow-x-auto bg-white rounded-lg shadow-md">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Table Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Floor</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Seats</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredTables.length === 0 ? (
+                            <tr>
+                                <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                    {selectedFloorTab === 'All' ? 'No tables configured.' : `No tables found on ${selectedFloorTab}.`}
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredTables.map(table => (
+                                <tr key={table.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{table.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.floor_name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.max_seats}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${
+                                            table.status === 'available' ? 'bg-green-100 text-green-800' :
+                                            table.status === 'occupied' ? 'bg-orange-100 text-orange-800' :
+                                            'bg-red-100 text-red-800' // For 'dirty' or other statuses
+                                        }`}>
+                                            {table.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button
+                                            onClick={() => { setTableToEdit(table); setIsEditTableModalOpen(true); }}
+                                            className="text-indigo-600 hover:text-indigo-900 mr-3 p-1 rounded-md hover:bg-indigo-50 transition-colors"
+                                            title="Edit Table"
+                                        >
+                                            <Edit size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => { setTableToDelete(table); setIsConfirmDeleteTableModalOpen(true); }}
+                                            className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
+                                            title="Delete Table"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+
+            {/* Modals for Floor Management */}
+            {/* Add Floor Modal */}
+            {isAddFloorModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Add New Floor</h2>
+                            <button onClick={() => setIsAddFloorModalOpen(false)} className="text-gray-500 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100">
+                                <XCircle size={24} />
+                            </button>
                         </div>
-                    )}
+                        <form onSubmit={handleAddFloor} className="space-y-4">
+                            <div>
+                                <label htmlFor="floorName" className="block text-sm font-medium text-gray-700">Floor Name</label>
+                                <input
+                                    type="text" id="floorName"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={newFloorName} onChange={(e) => setNewFloorName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddFloorModalOpen(false)}
+                                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
+                                >
+                                    Add Floor
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </section>
+            )}
 
-            {/* Modals */}
-            <AddFloorModal
-                isOpen={showAddFloorModal}
-                onClose={() => setShowAddFloorModal(false)}
-                onSave={handleAddFloor}
-            />
-            <EditFloorModal
-                isOpen={showEditFloorModal}
-                onClose={() => setShowEditFloorModal(false)}
-                onSave={handleEditFloor}
-                floor={selectedFloorForEdit}
-            />
-            <DeleteConfirmationModal
-                isOpen={showDeleteFloorModal}
-                onClose={() => setShowDeleteFloorModal(false)}
-                onDelete={handleDeleteFloor}
-                itemName={selectedFloorForDelete?.name}
-            />
+            {/* Edit Floor Modal */}
+            {isEditFloorModalOpen && floorToEdit && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Edit Floor</h2>
+                            <button onClick={() => setIsEditFloorModalOpen(false)} className="text-gray-500 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditFloor} className="space-y-4">
+                            <div>
+                                <label htmlFor="editFloorName" className="block text-sm font-medium text-gray-700">Floor Name</label>
+                                <input
+                                    type="text" id="editFloorName"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={floorToEdit.name} onChange={(e) => setFloorToEdit({ ...floorToEdit, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditFloorModalOpen(false)}
+                                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
-            <AddTableModal
-                isOpen={showAddTableModal}
-                onClose={() => setShowAddTableModal(false)}
-                onSave={handleAddTable}
-                floors={floors}
-            />
-            <EditTableModal
-                isOpen={showEditTableModal}
-                onClose={() => setShowEditTableModal(false)}
-                onSave={handleEditTable}
-                table={selectedTableForEdit}
-                floors={floors}
-            />
-            <DeleteConfirmationModal
-                isOpen={showDeleteTableModal}
-                onClose={() => setShowDeleteTableModal(false)}
-                onDelete={handleDeleteTable}
-                itemName={selectedTableForDelete?.name}
-            />
+            {/* Delete Floor Confirmation Modal */}
+            {isConfirmDeleteFloorModalOpen && floorToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 text-center">
+                        <div className="flex justify-center mb-4">
+                            <Trash2 size={48} className="text-red-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Confirm Deletion</h3>
+                        <p className="text-gray-700 mb-6">Are you sure you want to delete the floor "<span className="font-semibold">{floorToDelete.name}</span>"? This will also delete all associated tables. This action cannot be undone.</p>
+                        <div className="flex justify-end space-x-4">
+                            <button
+                                onClick={() => { setIsConfirmDeleteFloorModalOpen(false); setFloorToDelete(null); }}
+                                className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteFloorConfirmed}
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modals for Table Management */}
+            {/* Add Table Modal */}
+            {isAddTableModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Add New Table</h2>
+                            <button onClick={() => setIsAddTableModalOpen(false)} className="text-gray-500 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddTable} className="space-y-4">
+                            <div>
+                                <label htmlFor="tableName" className="block text-sm font-medium text-gray-700">Table Name</label>
+                                <input
+                                    type="text" id="tableName"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500"
+                                    value={newTable.name} onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="tableFloor" className="block text-sm font-medium text-gray-700">Floor</label>
+                                <select
+                                    id="tableFloor"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500"
+                                    value={newTable.floor_id} onChange={(e) => setNewTable({ ...newTable, floor_id: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Select a floor</option>
+                                    {floors.map(floor => (
+                                        <option key={floor.id} value={floor.id}>{floor.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="maxSeats" className="block text-sm font-medium text-gray-700">Max Seats</label>
+                                <input
+                                    type="number" id="maxSeats"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500"
+                                    value={newTable.max_seats} onChange={(e) => setNewTable({ ...newTable, max_seats: parseInt(e.target.value) || '' })}
+                                    required min="1"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="tableStatus" className="block text-sm font-medium text-gray-700">Initial Status</label>
+                                <select
+                                    id="tableStatus"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500"
+                                    value={newTable.status} onChange={(e) => setNewTable({ ...newTable, status: e.target.value })}
+                                    required
+                                >
+                                    <option value="available">Available</option>
+                                    <option value="occupied">Occupied</option>
+                                    <option value="dirty">Dirty</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddTableModalOpen(false)}
+                                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
+                                >
+                                    Add Table
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Table Modal */}
+            {isEditTableModalOpen && tableToEdit && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Edit Table</h2>
+                            <button onClick={() => setIsEditTableModalOpen(false)} className="text-gray-500 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditTable} className="space-y-4">
+                            <div>
+                                <label htmlFor="editTableName" className="block text-sm font-medium text-gray-700">Table Name</label>
+                                <input
+                                    type="text" id="editTableName"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={tableToEdit.name} onChange={(e) => setTableToEdit({ ...tableToEdit, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="editTableFloor" className="block text-sm font-medium text-gray-700">Floor</label>
+                                <select
+                                    id="editTableFloor"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={tableToEdit.floor_id} onChange={(e) => setTableToEdit({ ...tableToEdit, floor_id: e.target.value })}
+                                    required
+                                >
+                                    <option value="">Select a floor</option>
+                                    {floors.map(floor => (
+                                        <option key={floor.id} value={floor.id}>{floor.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="editMaxSeats" className="block text-sm font-medium text-gray-700">Max Seats</label>
+                                <input
+                                    type="number" id="editMaxSeats"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={tableToEdit.max_seats} onChange={(e) => setTableToEdit({ ...tableToEdit, max_seats: parseInt(e.target.value) || '' })}
+                                    required min="1"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="editTableStatus" className="block text-sm font-medium text-gray-700">Status</label>
+                                <select
+                                    id="editTableStatus"
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={tableToEdit.status} onChange={(e) => setTableToEdit({ ...tableToEdit, status: e.target.value })}
+                                    required
+                                >
+                                    <option value="available">Available</option>
+                                    <option value="occupied">Occupied</option>
+                                    <option value="dirty">Dirty</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditTableModalOpen(false)}
+                                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Table Confirmation Modal */}
+            {isConfirmDeleteTableModalOpen && tableToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 text-center">
+                        <div className="flex justify-center mb-4">
+                            <Trash2 size={48} className="text-red-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Confirm Deletion</h3>
+                        <p className="text-gray-700 mb-6">Are you sure you want to delete table "<span className="font-semibold">{tableToDelete.name}</span>"? This action cannot be undone.</p>
+                        <div className="flex justify-end space-x-4">
+                            <button
+                                onClick={() => { setIsConfirmDeleteTableModalOpen(false); setTableToDelete(null); }}
+                                className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteTableConfirmed}
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
