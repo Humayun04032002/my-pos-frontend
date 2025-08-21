@@ -18,7 +18,7 @@ function KitchenDisplay() {
             return;
         }
         try {
-            const response = await fetch('http://localhost:5000/api/kitchen/pending-items');
+            const response = await fetch('https://my-pos-backend.onrender.com/api/products/api/kitchen/pending-items');
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to fetch kitchen items.');
@@ -45,7 +45,7 @@ function KitchenDisplay() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`http://localhost:5000/api/kitchen/order-items/${itemId}/status`, {
+            const response = await fetch(`https://my-pos-backend.onrender.com/api/products/api/kitchen/order-items/${itemId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus }),
